@@ -9,6 +9,6 @@ Refer to LAPIS documentation for a complete description of the possible queries 
           ---        
         / o o \    
         V\ Y /V    
-    (\   / - \     Code by Ceci VA 
-     )) /    |     MIT License
-     ((/__) ||     
+    (\   / - \     
+     )) /    |     Code by Ceci VA 
+     ((/__) ||     MIT License
