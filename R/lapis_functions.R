@@ -9,6 +9,7 @@
 
 
 library(jsonlite)
+library(seqinr)
 library(tidyverse)
 
 #' Query LAPIS
@@ -32,8 +33,10 @@ lapis_query <- function(database = c("open", "gisaid"),
   # 2. Query the API
   cat("\nTalking to lapis...")
     response <- tryCatch(
-      if (endpoint %in% c("fasta", "fasta-aligned")) return(ape::read.FASTA(query))
-      else if (endpoint %in% c("strain-name", "gisaid-epi-isl")) return(read_csv(query, col_names = "sample_id"))
+      if (endpoint %in% c("fasta", "fasta-aligned")) {
+        cat("Downloading secuences...done!") 
+        return(seqinr::read.fasta(query))
+      } else if (endpoint %in% c("strain-name", "gisaid-epi-isl")) return(read_csv(query, col_names = "sample_id"))
       else fromJSON(URLencode(query)),
       error = function(e){
         message(e) 
@@ -115,28 +118,37 @@ lapis_build_query <- function(database, endpoint, group, filter, version, access
 
 #' Wrapper query lapis by id to get sample metadata, sequences, mutations or acknowledgement table.  
 #' @param samples: list of sample names 
-#' @param id: sample identifier provided, one of gisaidEpiIsl, "genbankAccession", "sraAccession", "strain"
+#' @param sample_id: sample identifier provided, one of gisaidEpiIsl, "genbankAccession", "sraAccession", "strain"
 #' @param database: one of open (genbank) or gisaid
-#' @endpoint:  one of aggregated/details/aa-mutations/nuc-mutations/fasta/fasta-aligned/contributors/strain-names/gisaid-epi-isl
-lapis_query_by_id <- function(samples, sample_id = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
-                              database, endpoint, batch_size = 100, access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
-  i = 1
-  data = tibble()
+#' @endpoint:  one or a list of details/aa-mutations/nuc-mutations/fasta/fasta-aligned/contributors/strain-names/gisaid-epi-isl
+lapis_query_by_id <- function(samples, 
+                              sample_id,# = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
+                              database, endpoint, batch_size = 100, 
+                              access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
   
-  while (i < (length(samples) + 1)) {
-    attr_list <- list(samples[i:(i + batch_size - 1)])
-    names(attr_list) <- match.arg(sample_id)
-    
-    lapis_data <- lapis_query(database = database,
-                              endpoint = endpoint,
-                              filter = attr_list,
-                              accessKey = access_key)$data
-    
-    data <- bind_rows(data, lapis_data)
-    cat("\nNumber  of samples retrieved: ", nrow(data))
-    i <- i + batch_size
-  }
+  data <- lapply(endpoint, function(ep) {
+    i = 1
+    data_endpoint = list()
   
+    while (i < (length(samples) + 1)) {
+      attr_list <- list(samples[i:(i + batch_size - 1)])
+      names(attr_list) <- sample_id
+      
+      lapis_data <- lapis_query(database = database,
+                                endpoint = ep,
+                                filter = attr_list,
+                                accessKey = access_key)
+      
+      if (ep %in% c("fasta", "fasta-aligned")) data_endpoint <- c(data_endpoint, lapis_data)
+      else {
+        data_endpoint <- bind_rows(data_endpoint, lapis_data$data)
+        cat("\nNumber  of samples retrieved: ", nrow(data_endpoint))
+        }
+      i <- i + batch_size
+    }
+    return(data_endpoint)
+  })
+  names(data) <- endpoint
   return(data)
 }
 
@@ -150,7 +162,7 @@ lapis_query_by_id <- function(samples, sample_id = c("gisaidEpiIsl", "genbankAcc
 # 
 # 
 # t <- lapis_query_by_id(database = "gisaid",
-#             endpoint = "details",
+#             endpoint =c("details", "fasta-aligned"),
 #             samples =  c("EPI_ISL_7367543", "EPI_ISL_7367544", "EPI_ISL_7367542"),
 #             sample_id = "gisaidEpiIsl",
 #             batch_size = 1)
