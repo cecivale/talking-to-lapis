@@ -13,13 +13,31 @@ library(seqinr)
 library(tidyverse)
 
 #' Query LAPIS
+#' 
+#' @description Query any of the databases, endpoints, using grouping or filtering through LAPIS. 
+#' Code modified from lapis documentation by Chaoran Chen
+#' 
 #' @param database: get samples from open (genbank) or gisaid database (accesskey required for gisaid)
 #' @param endpoint: one of aggregated/details/aa-mutations/nuc-mutations/fasta/fasta-aligned/contributors/strain-names/gisaid-epi-isl
 #' @param group: fields to group the samples for aggregated endpoint
 #' @param filter: attributes list returned by lapis_filter for filtering data
 #' @param version: lapis version, v1 default
 #' @param accessKey: access key for accessing GISAID data
-#' Code modified from lapis documentation by Chaoran Chen
+#' 
+#' @return List with response from LAPIS: data, query, errors and info. If endopoint is fasta, returns DNAbin.
+#' @export 
+#' 
+#' @examples 
+#' # Query number of sequences in Genbank by country
+#' lapis_query(database = "open",
+#'             endpoint = "aggregated",
+#'             group = "country")
+#' 
+#' # Query mutations in Swiss sequences from July to August 2022
+#' filter_mut <- lapis_filter(country = "Switzerland", dateFrom = "2022-07-01", dateTo = "2022-08-01")
+#' lapis_query(database = "open",
+#'             endpoint = "aa-mutation",
+#'             filter = filter_mut)
 lapis_query <- function(database = c("open", "gisaid"), 
                         endpoint = c("aggregated", "details", "aa-mutations", "nuc-mutations", 
                                      "fasta", "fasta-aligned", "contributors", "strain-names", 
@@ -61,11 +79,23 @@ lapis_query <- function(database = c("open", "gisaid"),
 }
 
 
-#' Wrapper query lapis by sequence ids to get one or several endpoints.
+#' Query LAPIS by sequence ids
+#' 
+#' @description Wrapper query lapis by sequence ids to get one or several endpoints for a set of samples.
+#' 
 #' @param samples: list of sample names 
 #' @param sample_id: sample identifier provided, one of gisaidEpiIsl, "genbankAccession", "sraAccession", "strain"
 #' @param database: one of open (genbank) or gisaid
 #' @endpoint:  one or a list of details/aa-mutations/nuc-mutations/fasta/fasta-aligned/contributors/strain-names/gisaid-epi-isl
+#' 
+#' @return: Data from LAPIS response, dataframe or list of dataframes, DNAbin for sequence data.
+#' @export
+#' 
+#' @example 
+#' lapis_query_by_id(database = "open",
+#'                   endpoint =c("details", "fasta-aligned"),
+#'                   samples =  c("EPI_ISL_7367543", "EPI_ISL_7367544", "EPI_ISL_7367542"),
+#'                   sample_id = "gisaidEpiIsl")
 lapis_query_by_id <- function(samples, 
                               sample_id,# = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
                               database, endpoint, batch_size = 100, 
@@ -98,9 +128,15 @@ lapis_query_by_id <- function(samples,
 }
 
 
-#' Helper function to define filters for LAPIS query
+#' LAPIS filter
+#' 
+#' @description Helper function to define filters for LAPIS query
 #' @param ... All possible filtering attributes in LAPIS queries
 #' @return Named list of filters for lapis_query call
+#' @export
+#' 
+#' @example 
+#' lapis_filter(country = "Switzerland", dateFrom = "2022-07-01")
 lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NULL, dateSubmittedTo = NULL,
                          region = NULL, country = NULL, division = NULL, location = NULL,
                          regionExposure = NULL, countryExposure = NULL, divisionExposure = NULL,
@@ -152,28 +188,3 @@ lapis_build_query <- function(database, endpoint, group, filter, version, access
   )
   return(query)
 }
-
-
-# Test by querying number of sequences in GISAID by country
-# test_by_country <- lapis_query(database = "gisaid",
-#                                endpoint = "aggregated",
-#                                group = "country",
-#                                accessKey = Sys.getenv("LAPIS_ACCESS_KEY"))
-# 
-# 
-# 
-# t <- lapis_query_by_id(database = "gisaid",
-#             endpoint =c("details", "fasta-aligned"),
-#             samples =  c("EPI_ISL_7367543", "EPI_ISL_7367544", "EPI_ISL_7367542"),
-#             sample_id = "gisaidEpiIsl",
-#             batch_size = 1)
-
-# working! :)
-
-
-lapis_query_by_id(database = "open",
-                  endpoint =c("details", "fasta-aligned"),
-                  samples =  c("EPI_ISL_7367543", "EPI_ISL_7367544", "EPI_ISL_7367542"),
-                  sample_id = "gisaidEpiIsl",
-                  batch_size = 1)
-
