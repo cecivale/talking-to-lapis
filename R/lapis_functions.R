@@ -61,62 +61,7 @@ lapis_query <- function(database = c("open", "gisaid"),
 }
 
 
-#' Helper function to define filters for LAPIS query
-#' @param ... All possible filtering attributes in LAPIS queries
-#' @return Named list of filters for lapis_query call
-lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NULL, dateSubmittedTo = NULL,
-                         region = NULL, country = NULL, division = NULL, location = NULL,
-                         regionExposure = NULL, countryExposure = NULL, divisionExposure = NULL,
-                         ageFrom = NULL, ageTo = NULL, sex = NULL, host = NULL, samplingStrategy = NULL,
-                         pangoLineage = NULL, nextcladePangoLineage = NULL, 
-                         nextstrainClade = NULL, gisaidClade = NULL,
-                         submittingLab = NULL, originatingLab = NULL,
-                         nucMutations = NULL, aaMutations = NULL, 
-                         nextcladeQcOverallScoreFrom = NULL, nextcladeQcOverallScoreTo = NULL,
-                         nextcladeQcMissingDataScoreFrom = NULL, nextcladeQcMissingDataScoreTo = NULL,
-                         nextcladeQcMixedSitesScoreFrom = NULL, nextcladeQcMixedSitesScoreTo = NULL,
-                         nextcladeQcPrivateMutationsScoreFrom = NULL, nextcladeQcPrivateMutationsScoreTo = NULL,
-                         nextcladeQcSnpClustersScoreFrom = NULL, nextcladeQcSnpClustersScoreTo = NULL,
-                         nextcladeQcFrameShiftsScoreFrom = NULL, nextcladeQcFrameShiftsScoreTo = NULL,
-                         nextcladeQcStopCodonsScoreFrom = NULL, nextcladeQcStopCodonsScoreTo = NULL,
-                         genbankAccession = NULL, sraAccession = NULL, gisaidEpiIsl = NULL, strain = NULL){
-  
-  attr_list <- compact(as.list(environment(), all=TRUE))
-  return(attr_list)
-}
-
-#' Build url query for lapis
-#' @inheritParams lapis_query
-#' @return LAPIS query url
-lapis_build_query <- function(database, endpoint, group, filter, version, accessKey){
-  # Transform filter to dataframe if list
-  if (!is.null(filter)) {
-    if ((is.list(filter) | is.vector(filter)) & !is_tibble(filter)) attr <- enframe(filter)
-    else {
-      attr <- filter
-      if (is_tibble(attr)) stop("The format of filter attributes is not correct, please use lapis_filter function")
-    }
-    attr <- attr %>% filter(!is.na(value)) %>%
-      rowwise() %>%
-      mutate_if(is.list, function (x)  paste0(x, collapse= ","))
-  }
-  
-  # Build query
-  query <- paste0(
-    "https://lapis.cov-spectrum.org/",
-    database, "/",
-    version, "/",
-    "sample", "/",
-    endpoint, "?",
-    ifelse(!is.null(group), paste0("fields=", paste0(group), collapse = ","), ""),
-    "&", ifelse(!is.null(filter), paste0(paste0(attr$name, "=", attr$value), collapse = "&"), ""),
-    "&",ifelse(!is.null(accessKey), paste0("accessKey=", accessKey), "")
-  )
-  return(query)
-}
-
-
-#' Wrapper query lapis by id to get sample metadata, sequences, mutations or acknowledgement table.  
+#' Wrapper query lapis by sequence ids to get one or several endpoints.
 #' @param samples: list of sample names 
 #' @param sample_id: sample identifier provided, one of gisaidEpiIsl, "genbankAccession", "sraAccession", "strain"
 #' @param database: one of open (genbank) or gisaid
@@ -153,6 +98,62 @@ lapis_query_by_id <- function(samples,
 }
 
 
+#' Helper function to define filters for LAPIS query
+#' @param ... All possible filtering attributes in LAPIS queries
+#' @return Named list of filters for lapis_query call
+lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NULL, dateSubmittedTo = NULL,
+                         region = NULL, country = NULL, division = NULL, location = NULL,
+                         regionExposure = NULL, countryExposure = NULL, divisionExposure = NULL,
+                         ageFrom = NULL, ageTo = NULL, sex = NULL, host = NULL, samplingStrategy = NULL,
+                         pangoLineage = NULL, nextcladePangoLineage = NULL, 
+                         nextstrainClade = NULL, gisaidClade = NULL,
+                         submittingLab = NULL, originatingLab = NULL,
+                         nucMutations = NULL, aaMutations = NULL, 
+                         nextcladeQcOverallScoreFrom = NULL, nextcladeQcOverallScoreTo = NULL,
+                         nextcladeQcMissingDataScoreFrom = NULL, nextcladeQcMissingDataScoreTo = NULL,
+                         nextcladeQcMixedSitesScoreFrom = NULL, nextcladeQcMixedSitesScoreTo = NULL,
+                         nextcladeQcPrivateMutationsScoreFrom = NULL, nextcladeQcPrivateMutationsScoreTo = NULL,
+                         nextcladeQcSnpClustersScoreFrom = NULL, nextcladeQcSnpClustersScoreTo = NULL,
+                         nextcladeQcFrameShiftsScoreFrom = NULL, nextcladeQcFrameShiftsScoreTo = NULL,
+                         nextcladeQcStopCodonsScoreFrom = NULL, nextcladeQcStopCodonsScoreTo = NULL,
+                         genbankAccession = NULL, sraAccession = NULL, gisaidEpiIsl = NULL, strain = NULL){
+  
+  attr_list <- compact(as.list(environment(), all=TRUE))
+  return(attr_list)
+}
+
+
+#' Build url query for lapis
+#' @inheritParams lapis_query
+#' @return LAPIS query url
+lapis_build_query <- function(database, endpoint, group, filter, version, accessKey){
+  # Transform filter to dataframe if list
+  if (!is.null(filter)) {
+    if ((is.list(filter) | is.vector(filter)) & !is_tibble(filter)) attr <- enframe(filter)
+    else {
+      attr <- filter
+      if (is_tibble(attr)) stop("The format of filter attributes is not correct, please use lapis_filter function")
+    }
+    attr <- attr %>% filter(!is.na(value)) %>%
+      rowwise() %>%
+      mutate_if(is.list, function (x)  paste0(x, collapse= ","))
+  }
+  
+  # Build query
+  query <- paste0(
+    "https://lapis.cov-spectrum.org/",
+    database, "/",
+    version, "/",
+    "sample", "/",
+    endpoint, "?",
+    ifelse(!is.null(group), paste0("fields=", paste0(group), collapse = ","), ""),
+    "&", ifelse(!is.null(filter), paste0(paste0(attr$name, "=", attr$value), collapse = "&"), ""),
+    "&",ifelse(!is.null(accessKey), paste0("accessKey=", accessKey), "")
+  )
+  return(query)
+}
+
+
 # Test by querying number of sequences in GISAID by country
 # test_by_country <- lapis_query(database = "gisaid",
 #                                endpoint = "aggregated",
@@ -170,5 +171,9 @@ lapis_query_by_id <- function(samples,
 # working! :)
 
 
-
+lapis_query_by_id(database = "open",
+                  endpoint =c("details", "fasta-aligned"),
+                  samples =  c("EPI_ISL_7367543", "EPI_ISL_7367544", "EPI_ISL_7367542"),
+                  sample_id = "gisaidEpiIsl",
+                  batch_size = 1)
 
