@@ -9,7 +9,7 @@
 
 
 library(jsonlite)
-library(seqinr)
+library(ape)
 library(tidyverse)
 
 #' Query LAPIS
@@ -53,12 +53,12 @@ lapis_query <- function(database = c("open", "gisaid"),
     response <- tryCatch(
       if (endpoint %in% c("fasta", "fasta-aligned")) {
         cat("Downloading secuences...done!") 
-        return(seqinr::read.fasta(query))
+        return(ape::read.FASTA(query))
       } else if (endpoint %in% c("strain-name", "gisaid-epi-isl")) return(read_csv(query, col_names = "sample_id"))
       else fromJSON(URLencode(query)),
       error = function(e){
         message(e) 
-        message("\nError from lapis connection, see query in return value.\n")} )
+        message("\nError from lapis connection, query:\n", query)} )
   cat("done!")
 
   # 3. Check for errors
@@ -113,10 +113,13 @@ lapis_query_by_id <- function(samples,
                                 endpoint = ep,
                                 filter = attr_list,
                                 accessKey = access_key)
-      
+        
       if (ep %in% c("fasta", "fasta-aligned")) data_endpoint <- c(data_endpoint, lapis_data)
       else {
-        data_endpoint <- bind_rows(data_endpoint, lapis_data$data)
+        if (ep %in% c("nuc-mutations", "aa-mutations") & batch_size == 1) data <- lapis_data$data %>% mutate(sample = attr_list)
+        else data <- lapis_data$data
+        
+        data_endpoint <- bind_rows(data_endpoint, data)
         cat("\nNumber  of samples retrieved: ", nrow(data_endpoint))
         }
       i <- i + batch_size
@@ -124,9 +127,41 @@ lapis_query_by_id <- function(samples,
     return(data_endpoint)
   })
   names(data) <- endpoint
+  if (length(data) == 1) return(data[[1]])
   return(data)
 }
 
+# Query lapis
+# @param samples: list of sample names to get the acknowledment table
+# @param seqid: sample identifier provided, default gisaidEpiIsl
+# @param output: output format of acknowledgement table: "all" or "group", default grouped by lab
+lapis_acknowledgment_table <- function(samples, sample_id = "gisaidEpiIsl", batch_size = 20, output = NA) {
+  
+  contributors <- lapis_query_by_id(samples = samples, 
+                           sample_id = sample_id,  
+                           database = "gisaid", 
+                           endpoint = "contributors", 
+                           batch_size = batch_size) %>%
+    select(gisaidEpiIsl)
+    # select(-genbankAccession, -sraAccession)
+  open_contributors <- lapis_query_by_id(samples = contributors$gisaidEpiIsl, 
+                                sample_id = "gisaidEpiIsl",  
+                                database = "open", 
+                                endpoint = "contributors", 
+                                batch_size = batch_size) #%>%
+    # select(gisaidEpiIsl, genbankAccession, sraAccession)
+    data <- left_join(contributors, open_contributors, by = "gisaidEpiIsl")
+    cat("\nNumber  of samples retrieved: ", nrow(data))
+    cat("\nGenbank ID available for: ", sum(!is.na(data$genbankAccession)), " samples of ", nrow(data))
+  
+  if (!is.na(output) & output == "grouped") {
+    return(data %>% group_by(originatingLab, submittingLab, authors) %>%
+                                  summarise(all_gisaid = paste(gisaidEpiIsl, collapse = ","),
+                                            all_genbank = paste(genbankAccession, collapse = ","),
+                                            all_ena = paste(sraAccession, collapse = ","), .groups = "drop"))
+  }
+  return(data)
+}
 
 #' LAPIS filter
 #' 
@@ -153,7 +188,6 @@ lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NUL
                          nextcladeQcFrameShiftsScoreFrom = NULL, nextcladeQcFrameShiftsScoreTo = NULL,
                          nextcladeQcStopCodonsScoreFrom = NULL, nextcladeQcStopCodonsScoreTo = NULL,
                          genbankAccession = NULL, sraAccession = NULL, gisaidEpiIsl = NULL, strain = NULL){
-  
   attr_list <- compact(as.list(environment(), all=TRUE))
   return(attr_list)
 }
@@ -188,3 +222,40 @@ lapis_build_query <- function(database, endpoint, group, filter, version, access
   )
   return(query)
 }
+
+lapis_query_sequence_reference <- function(database = c("open", "gisaid"), 
+                                           endpoint = c("aa-mutations", "nuc-mutations"), 
+                                           filter = NULL, version = "v1", accessKey = NULL,
+                                           min_proportion = 0.75,
+                                           reference_genome,
+                                           output_fasta = NULL) {
+  mutations <- lapis_query(database = database, 
+                           endpoint = endpoint, 
+                           filter = filter,
+                           version = version, 
+                           accessKey = accessKey)$data
+  mutations_filtered <- mutations %>% filter(proportion >= min_proportion) %>%
+    mutate(ref = tolower(str_sub(mutation, 1, 1)),
+           pos = str_sub(mutation, 2, -2),
+           alt = tolower(str_sub(mutation, -1, -1)))
+  
+  reference <- ape::as.character.DNAbin(ape::read.FASTA(reference_genome))
+  reference_mutated <- reference
+  
+  for (row in 1:nrow(mutations_filtered)) { 
+    if (reference_mutated[[1]][as.numeric(mutations_filtered[row, "pos"])] == mutations_filtered[row, "ref"]) {
+      reference_mutated[[1]][as.numeric(mutations_filtered[row, "pos"])] <- mutations_filtered[row, "alt"]
+    } else { 
+      warning("Error: Reference sequence different to lapis reference.")
+      break
+      }
+  }
+  
+  reference_mutated_dnabin <- ape::as.DNAbin(reference_mutated)
+  names(reference_mutated_dnabin) <- paste0("lapis_", paste0(filter, collapse = "_"))
+    
+  if (!is.null(output_fasta)) 
+    write.FASTA(reference_mutated_dnabin, output_fasta)
+  
+  return(reference_mutated_dnabin)
+  }
