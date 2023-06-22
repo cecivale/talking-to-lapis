@@ -1,8 +1,8 @@
 # ------------------------------------------------------------------------------
 #          ---        
-#        / o o \    Project:  cov-euphydyn
+#        / o o \    Snakemake workflow talking to LAPIS
 #        V\ Y /V    Functions to query lapis metadata and sequences 
-#    (\   / - \     29 July 2022
+#    (\   / - \     
 #     )) /    |     
 #     ((/__) ||     Code by Ceci VA 
 # ------------------------------------------------------------------------------
@@ -23,8 +23,9 @@ def attr_dict_to_lapis(attr_dict):
         ":", "=").replace(
         " ", "").replace(
         "\\n", ",").replace(
-        "UnitedKingdom", "United Kingdom")
-    
+        "UnitedKingdom", "United Kingdom").replace(
+        "Homosapiens", "Homo sapiens")
+    #TODO improve space handling
     return lapis_s
 
 

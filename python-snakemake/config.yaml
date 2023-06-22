@@ -1,0 +1,42 @@
+# ------------------------------------------------------------------------------
+#          ---        
+#        / o o \    Snakemake workflow talking to LAPIS
+#        V\ Y /V    Config file 
+#    (\   / - \     
+#     )) /    |     
+#     ((/__) ||     Code by Ceci VA 
+# ------------------------------------------------------------------------------
+
+lapis:
+  database: "open" # gisaid or open
+  seq_id: "genbankAccession" #gisaidEpiIsl or genbankAccession
+  access_key: "LAPIS_ACCESS_KEY" # only for gisaid endpoint
+
+dataset:
+  example:
+    select: 
+      country: "Switzerland"
+      nextcladeQcMissingDataScoreFrom: 0
+      nextcladeQcMissingDataScoreTo: 10
+      variantQuery: "!B.1.1.7*"
+      dateFrom: "2021-01-01"
+      dateTo: "2021-01-10"
+
+  example_structured:
+    structure:
+      deme1:
+        select: 
+          ids_file: ""
+          nextcladeQcMissingDataScoreFrom: 0
+          nextcladeQcMissingDataScoreTo: 300
+          dateFrom: ""
+          dateTo: ""
+          
+      deme2:
+        select:
+          ids_file: ""
+          nextcladeQcMissingDataScoreFrom: 0
+          nextcladeQcMissingDataScoreTo: 300
+          dateFrom: ""
+          dateTo: ""
+

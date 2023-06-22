@@ -1,8 +1,8 @@
 # ------------------------------------------------------------------------------
 #          ---        
-#        / o o \    Project:  cov-euphydyn
+#        / o o \    Snakemake workflow talking to LAPIS
 #        V\ Y /V    Script to query lapis sequences inside snakemake workflow
-#    (\   / - \     29 August 2022
+#    (\   / - \     
 #     )) /    |     
 #     ((/__) ||     Code by Ceci VA 
 # ------------------------------------------------------------------------------
@@ -27,8 +27,7 @@ if __name__ == '__main__':
     parser.add_argument("--ids_file", type=str, required=True, help="File with sequences id to download")
     parser.add_argument("--output_file", type=str, required=True,  help="Output file for sequences")
     parser.add_argument("--drop_incomplete", default=True, help="Drop <29000 length sequences")
-    parser.add_argument("--seq_identifier", default="gisaidEpiIsl", help="Sequence identifier used in ids file")
-    parser.add_argument("--batch_size", default=50, help="Lapis donwload batch size")
+    parser.add_argument("--batch_size", default=100, help="Lapis donwload batch size")
     args = parser.parse_args()
     
     database = args.config['lapis']["database"]
@@ -37,14 +36,16 @@ if __name__ == '__main__':
     df_ids = pd.read_csv(args.ids_file, sep='\t')
     batch_size = args.batch_size
     output_file = args.output_file
+    seq_id = args.config['lapis']['seq_id']
 
     i = 0
     
     while i < len(df_ids):
         n = i+batch_size if i+batch_size < len(df_ids) else len(df_ids) 
-        ids = df_ids["gisaidEpiIsl"][i:n] # TODO use other seq identifier
-        seq_names = df_ids[i:n].set_index("gisaidEpiIsl", append = False) 
-        attributes = dict(gisaidEpiIsl = ids.to_string(index = False)) 
+        ids = df_ids[seq_id][i:n] 
+        seq_names = df_ids[i:n].set_index(seq_id, append = False) 
+        attributes = dict() 
+        attributes[seq_id] = ids.to_string(index = False)
         data = query_lapis(database, endpoint, attributes, accessKey = access_key)
         temp = output_file.replace(".fasta", "_temp.fasta")
         SeqIO.write(data, temp, "fasta")

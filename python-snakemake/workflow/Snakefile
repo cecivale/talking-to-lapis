@@ -1,0 +1,111 @@
+
+# ----------------------------------------------------------------------------------
+#          ---        
+#        / o o \    Snakemake workflow talking to LAPIS
+#        V\ Y /V    Rules to load sequence data and other metadata with LAPIS
+#    (\   / - \     
+#     )) /    |     
+#     ((/__) ||     Code by Ceci VA 
+# -----------------------------------------------------------------------------------
+
+import os 
+
+from snakemake.utils import update_config, validate, min_version
+min_version("7.11.0")
+
+configfile: "config.yaml"
+
+envvars:
+    config["lapis"]["access_key"]
+
+localrules: all, clean
+
+DATASETS = list(config["dataset"].keys())
+
+rule all:
+    input:
+        expand("results/{dataset}/data/aligned.fasta", dataset = DATASETS)
+
+rule clean:
+    shell:
+        '''
+        rm -rf results logs
+        '''
+
+rule load_metadata:
+    message:
+        """
+        Load with LAPIS sequences metadata from config file.
+        """
+    output:
+        ids = "results/{dataset}/data/{prefix,.*}ids.tsv",
+        metadata = "results/{dataset}/data/{prefix,.*}metadata.tsv"
+    params:
+        x=os.environ[config["lapis"]["access_key"]]
+    log:
+        "logs/load_metadata_{dataset}_{prefix,.*}.txt"
+    conda:
+        "envs/python-genetic-data.yaml"
+    shell:
+        """
+        python3 workflow/scripts/lapis_query_metadata.py \
+            --select config["dataset"][wildcards.dataset][wildcards.deme]['select'] \
+            --output_metadata {output.metadata} \
+            --output_ids {output.ids}  2>&1 | tee {log}
+        """
+
+def _is_structured(wildcards):
+    return (config["dataset"][wildcards.dataset].get("structure") is not None)
+
+def _get_ids_to_combine(wildcards):
+    if _is_structured(wildcards):
+        demes = config["dataset"][wildcards.dataset]["structure"].keys()
+        files = expand("results/{{dataset}}/data/{deme}/ids.tsv", deme = demes)
+    else:
+        files = "results/{dataset}/data/ids.tsv"
+    return files
+
+rule combine_samples:
+    message:
+        """
+        Combine sequences metadata from demes.
+        """
+    input:
+        ids = _get_ids_to_combine
+    output:
+        ids = "results/{dataset}/data/ids_combined.tsv" 
+    log:
+        "logs/combine_ids_{dataset}.txt"
+    shell:
+        """
+        rm -f {output.ids}
+        awk '(NR == 1) || (FNR > 1)' {input.ids} > {output.ids} 2>&1 | tee {log}
+        """
+
+def  _get_sequences_ids(wildcards):
+    data_dir = "results/{dataset}/data/"
+    return (data_dir + "ids_combined.tsv" if _is_structured(wildcards) else data_dir + "ids.tsv")
+
+rule load_sequences:
+    message:
+        """
+        Load with LAPIS the selected sequences for each dataset and drop not full genome sequences.
+        """
+    input:
+        ids = _get_sequences_ids
+    output:
+        alignment = "results/{dataset}/data/aligned.fasta"
+    params:
+        x = os.environ[config["lapis"]["access_key"]]
+    log:
+        "logs/load_seqs_{dataset}.txt" 
+    conda:
+        "envs/python-genetic-data.yaml"
+    shell:
+        """
+        python3 workflow/scripts/lapis_query_sequences.py \
+            --config "{config}" \
+            --ids_file {input.ids} \
+            --output_file {output.alignment} \
+            --drop_incomplete True 2>&1 | tee {log}
+        """
