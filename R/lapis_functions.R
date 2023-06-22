@@ -53,7 +53,7 @@ lapis_query <- function(database = c("open", "gisaid"),
     response <- tryCatch(
       if (endpoint %in% c("fasta", "fasta-aligned")) {
         cat("Downloading secuences...done!") 
-        return(ape::read.FASTA(query))
+        return(seqinr::read.fasta(query))
       } else if (endpoint %in% c("strain-name", "gisaid-epi-isl")) return(read_csv(query, col_names = "sample_id"))
       else fromJSON(URLencode(query)),
       error = function(e){
@@ -75,6 +75,10 @@ lapis_query <- function(database = c("open", "gisaid"),
   }
 
   # 5. Return the data
+  if (endpoint %in% c("fasta", "fasta-aligned")) {
+    print(response$errors) 
+    return()
+    }
   return(list(data = response$data, query = query, errors = response$errors, info = response$info))
 }
 
@@ -98,7 +102,9 @@ lapis_query <- function(database = c("open", "gisaid"),
 #'                   sample_id = "gisaidEpiIsl")
 lapis_query_by_id <- function(samples, 
                               sample_id,# = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
-                              database, endpoint, batch_size = 100, 
+                              database, endpoint, 
+                              more_filter = NULL,
+                              batch_size = 100, 
                               access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
   
   data <- lapply(endpoint, function(ep) {
@@ -111,7 +117,7 @@ lapis_query_by_id <- function(samples,
       
       lapis_data <- lapis_query(database = database,
                                 endpoint = ep,
-                                filter = attr_list,
+                                filter = c(attr_list, more_filter),
                                 accessKey = access_key)
         
       if (ep %in% c("fasta", "fasta-aligned")) data_endpoint <- c(data_endpoint, lapis_data)
@@ -179,7 +185,7 @@ lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NUL
                          pangoLineage = NULL, nextcladePangoLineage = NULL, 
                          nextstrainClade = NULL, gisaidClade = NULL,
                          submittingLab = NULL, originatingLab = NULL,
-                         nucMutations = NULL, aaMutations = NULL, 
+                         nucMutations = NULL, aaMutations = NULL, variantQuery = NULL, 
                          nextcladeQcOverallScoreFrom = NULL, nextcladeQcOverallScoreTo = NULL,
                          nextcladeQcMissingDataScoreFrom = NULL, nextcladeQcMissingDataScoreTo = NULL,
                          nextcladeQcMixedSitesScoreFrom = NULL, nextcladeQcMixedSitesScoreTo = NULL,
