@@ -15,12 +15,13 @@ min_version("7.11.0")
 
 configfile: "config.yaml"
 
-envvars:
-    config["lapis"]["access_key"]
+# envvars:
+#     config["lapis"]["access_key"]
 
 localrules: all, clean
 
-DATASETS = list(config["dataset"].keys())
+DATASETS = list(config["datasets"].keys())
+
 
 rule all:
     input:
@@ -38,12 +39,12 @@ rule load_metadata:
         Load with LAPIS sequences metadata from config file.
         """
     output:
-        ids = "results/{dataset}/data/{prefix,.*}ids.tsv",
-        metadata = "results/{dataset}/data/{prefix,.*}metadata.tsv"
-    params:
-        x=os.environ[config["lapis"]["access_key"]]
+        ids = "results/data/{dataset}/{prefix,.*}ids.tsv",
+        metadata = "results/data/{dataset}/{prefix,.*}metadata.tsv"
+    # params:
+    #     x=os.environ[config["lapis"]["access_key"]]
     log:
-        "logs/load_metadata_{dataset}_{prefix,.*}.txt"
+        "logs/load_metadata_{dataset}{prefix,.*}.txt"
     conda:
         "envs/python-genetic-data.yaml"
     shell:
@@ -83,10 +84,13 @@ rule combine_samples:
         """
 
 def  _get_sequences_ids(wildcards):
-    data_dir = "results/{dataset}/data/"
+    data_dir = "results/data/{dataset}/"
     return (data_dir + "ids_combined.tsv" if _is_structured(wildcards) else data_dir + "ids.tsv")
 
-rule load_sequences:
+def  _get_lapis_param(param, wildcards):
+    return config["lapis"][param]
+
+rule load_sequences: # TODO access_key
     message:
         """
         Load with LAPIS the selected sequences for each dataset and drop not full genome sequences.
@@ -94,18 +98,25 @@ rule load_sequences:
     input:
         ids = _get_sequences_ids
     output:
-        alignment = "results/{dataset}/data/aligned.fasta"
+        alignment = "results/data/{dataset}/aligned.fasta"
     params:
-        x = os.environ[config["lapis"]["access_key"]]
+        database = lambda wildcards: _get_lapis_param("database", wildcards),
+        seq_id = lambda wildcards: _get_lapis_param("seq_id", wildcards),
+        drop_incomplete = False,
+        batch_size = 100,
+        # access_key = os.environ[config["lapis"]["access_key"]] or ""
     log:
         "logs/load_seqs_{dataset}.txt" 
     conda:
         "envs/python-genetic-data.yaml"
-    shell:
-        """
-        python3 workflow/scripts/lapis_query_sequences.py \
-            --config "{config}" \
-            --ids_file {input.ids} \
-            --output_file {output.alignment} \
-            --drop_incomplete True 2>&1 | tee {log}
-        """
+    script:
+        "scripts/query_sequences.py"
+
+# """
+# python3 workflow/scripts/lapis_query_sequences.py \
+#     --database "{params.database}" \
+#     --seq_id "{params.seq_id}" \
+#     --ids_file {input.ids} \
+#     --output_file {output.alignment} \
+#     --drop_incomplete {params.drop_incomplete} 2>&1 | tee {log}
+# """

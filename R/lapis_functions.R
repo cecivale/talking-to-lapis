@@ -103,7 +103,7 @@ lapis_query <- function(database = c("open", "gisaid"),
 lapis_query_by_id <- function(samples, 
                               sample_id,# = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
                               database, endpoint, 
-                              more_filter = NULL,
+                              filter = NULL,
                               batch_size = 100, 
                               access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
   
@@ -117,7 +117,7 @@ lapis_query_by_id <- function(samples,
       
       lapis_data <- lapis_query(database = database,
                                 endpoint = ep,
-                                filter = c(attr_list, more_filter),
+                                filter = c(attr_list, filter),
                                 accessKey = access_key)
         
       if (ep %in% c("fasta", "fasta-aligned")) data_endpoint <- c(data_endpoint, lapis_data)
