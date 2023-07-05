@@ -90,7 +90,7 @@ def  _get_sequences_ids(wildcards):
 def  _get_lapis_param(param, wildcards):
     return config["lapis"][param]
 
-rule load_sequences: # TODO access_key
+rule load_sequences: # TODO access_key # TODO save sequence version in log # TODO check if it works with --use-conda
     message:
         """
         Load with LAPIS the selected sequences for each dataset and drop not full genome sequences.
@@ -112,11 +112,3 @@ rule load_sequences: # TODO access_key
     script:
         "scripts/query_sequences.py"
 
-# """
-# python3 workflow/scripts/lapis_query_sequences.py \
-#     --database "{params.database}" \
-#     --seq_id "{params.seq_id}" \
-#     --ids_file {input.ids} \
-#     --output_file {output.alignment} \
-#     --drop_incomplete {params.drop_incomplete} 2>&1 | tee {log}
-# """

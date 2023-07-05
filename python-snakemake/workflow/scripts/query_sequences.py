@@ -38,9 +38,11 @@ if __name__ == '__main__':
         data = query_lapis(database, endpoint, attributes, accessKey = access_key)
         temp = output_file.replace(".fasta", "_temp.fasta")
         SeqIO.write(data, temp, "fasta")
+
         with open(temp) as original, open(output_file, 'a') as corrected:
             records = SeqIO.parse(original, 'fasta')
             for record in records:
+                # TODO QC in another step
                 if snakemake.params["drop_incomplete"] and len(record.seq.replace("-","")) < 29000: continue # Write only full SARS-CoV-2 genomes
                 record.id = seq_names.loc[record.id]['sample_id']
                 record.description = ""
