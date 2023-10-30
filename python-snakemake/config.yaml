@@ -10,33 +10,36 @@
 lapis:
   database: "open" # gisaid or open
   seq_id: "genbankAccession" #gisaidEpiIsl or genbankAccession
-  access_key: "LAPIS_ACCESS_KEY" # only for gisaid endpoint
+  #access_key: "LAPIS_ACCESS_KEY" # only for gisaid endpoint
+  batch_size: 100
 
-dataset:
+datasets:
   example:
     select: 
       country: "Switzerland"
       nextcladeQcMissingDataScoreFrom: 0
       nextcladeQcMissingDataScoreTo: 10
-      variantQuery: "!B.1.1.7*"
+      variantQuery: "B.1.1.7*"
       dateFrom: "2021-01-01"
-      dateTo: "2021-01-10"
+      dateTo: "2021-01-01"
 
   example_structured:
     structure:
       deme1:
         select: 
-          ids_file: ""
+          country: "Switzerland"
           nextcladeQcMissingDataScoreFrom: 0
-          nextcladeQcMissingDataScoreTo: 300
-          dateFrom: ""
-          dateTo: ""
+          nextcladeQcMissingDataScoreTo: 10
+          variantQuery: "B.1.1.7*"
+          dateFrom: "2021-01-01"
+          dateTo: "2021-01-01"
           
       deme2:
-        select:
-          ids_file: ""
+        select: 
+          country: "Switzerland"
           nextcladeQcMissingDataScoreFrom: 0
-          nextcladeQcMissingDataScoreTo: 300
-          dateFrom: ""
-          dateTo: ""
+          nextcladeQcMissingDataScoreTo: 10
+          variantQuery: "B.1.1.7*"
+          dateFrom: "2021-01-02"
+          dateTo: "2021-01-02"
 

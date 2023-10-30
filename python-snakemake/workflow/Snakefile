@@ -19,19 +19,41 @@ configfile: "config.yaml"
 #     config["lapis"]["access_key"]
 
 localrules: all, clean
+# wildcards
+wildcard_constraints:
+    dataset="[A-Za-z0-9_]+"
 
 DATASETS = list(config["datasets"].keys())
 
 
 rule all:
     input:
-        expand("results/{dataset}/data/aligned.fasta", dataset = DATASETS)
+        expand("results/data/{dataset}/aligned.fasta", dataset = DATASETS)
 
 rule clean:
     shell:
         '''
         rm -rf results logs
         '''
+
+def _is_structured(wildcards):
+    return (config["datasets"][wildcards.dataset].get("structure") is not None)
+
+def  _get_dataset_param(param, wildcards):
+    if _is_structured(wildcards):
+        return config["datasets"][wildcards.dataset]["structure"][wildcards.prefix[0:-1]].get(param)
+    else:
+        return config["datasets"][wildcards.dataset].get(param)
+
+def  _get_select_params(wildcards):
+    return _get_dataset_param("select", wildcards)
+
+def _get_deme(wildcards):
+    if _is_structured(wildcards):
+        return config["datasets"][wildcards.dataset]["structure"][wildcards.prefix[0:-1]].get("deme", 
+            wildcards.prefix[0:-1]) 
+    else:
+        return None
 
 rule load_metadata:
     message:
@@ -41,29 +63,25 @@ rule load_metadata:
     output:
         ids = "results/data/{dataset}/{prefix,.*}ids.tsv",
         metadata = "results/data/{dataset}/{prefix,.*}metadata.tsv"
-    # params:
-    #     x=os.environ[config["lapis"]["access_key"]]
+    params:
+        database = config["lapis"]["database"],
+        # access_key = os.environ[config["lapis"]["access_key"]],
+        seq_id = config["lapis"]["seq_id"],
+        deme = lambda wildcards: _get_deme(wildcards)
     log:
         "logs/load_metadata_{dataset}{prefix,.*}.txt"
     conda:
         "envs/python-genetic-data.yaml"
-    shell:
-        """
-        python3 workflow/scripts/lapis_query_metadata.py \
-            --select config["dataset"][wildcards.dataset][wildcards.deme]['select'] \
-            --output_metadata {output.metadata} \
-            --output_ids {output.ids}  2>&1 | tee {log}
-        """
+    script:
+        "scripts/query_metadata.py"
 
-def _is_structured(wildcards):
-    return (config["dataset"][wildcards.dataset].get("structure") is not None)
 
 def _get_ids_to_combine(wildcards):
     if _is_structured(wildcards):
-        demes = config["dataset"][wildcards.dataset]["structure"].keys()
-        files = expand("results/{{dataset}}/data/{deme}/ids.tsv", deme = demes)
+        demes = config["datasets"][wildcards.dataset]["structure"].keys()
+        files = expand("results/data/{{dataset}}/{deme}/ids.tsv", deme = demes)
     else:
-        files = "results/{dataset}/data/ids.tsv"
+        files = "results/data/{dataset}/ids.tsv"
     return files
 
 rule combine_samples:
@@ -74,7 +92,7 @@ rule combine_samples:
     input:
         ids = _get_ids_to_combine
     output:
-        ids = "results/{dataset}/data/ids_combined.tsv" 
+        ids = "results/data/{dataset}/ids_combined.tsv" 
     log:
         "logs/combine_ids_{dataset}.txt"
     shell:
@@ -102,8 +120,8 @@ rule load_sequences: # TODO access_key # TODO save sequence version in log # TOD
     params:
         database = lambda wildcards: _get_lapis_param("database", wildcards),
         seq_id = lambda wildcards: _get_lapis_param("seq_id", wildcards),
-        drop_incomplete = False,
-        batch_size = 100,
+        drop_incomplete = True,
+        batch_size = config["lapis"]["batch_size"],
         # access_key = os.environ[config["lapis"]["access_key"]] or ""
     log:
         "logs/load_seqs_{dataset}.txt" 
