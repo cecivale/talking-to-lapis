@@ -18,7 +18,7 @@ library(tidyverse)
 #' Code modified from lapis documentation by Chaoran Chen
 #' 
 #' @param database: get samples from open (genbank) or gisaid database (accesskey required for gisaid)
-#' @param endpoint: one of aggregated/details/aa-mutations/nuc-mutations/fasta/fasta-aligned/contributors/strain-names/gisaid-epi-isl
+#' @param endpoint: one of LAPIS endpoints
 #' @param group: fields to group the samples for aggregated endpoint
 #' @param filter: attributes list returned by lapis_filter for filtering data
 #' @param version: lapis version, v1 default
@@ -39,10 +39,10 @@ library(tidyverse)
 #'             endpoint = "aa-mutation",
 #'             filter = filter_mut)
 lapis_query <- function(database = c("open", "gisaid"), 
-                        endpoint = c("aggregated", "details", "aa-mutations", "nuc-mutations", 
-                                     "fasta", "fasta-aligned", "contributors", "strain-names", 
+                        endpoint = c("aggregated", "details", "aminoAcitMutations", "nucleotideMutations", 
+                                     "unalignedNucleotideSequences", "alignedNucleotideSequences", "contributors", "strain-names", 
                                      "gisaid-epi-isl"), 
-                        group = NULL, filter = NULL, version = "v1", accessKey = NULL) {
+                        group = NULL, filter = NULL, version = "v2", accessKey = NULL) {
   # 1. Build query
   query <- lapis_build_query(match.arg(database),
                              match.arg(endpoint),
@@ -51,7 +51,7 @@ lapis_query <- function(database = c("open", "gisaid"),
   # 2. Query the API
   cat("\nTalking to lapis...")
     response <- tryCatch(
-      if (endpoint %in% c("fasta", "fasta-aligned")) {
+      if (endpoint %in% c("unalignedNucleotideSequences", "alignedNucleotideSequences")) {
         cat("Downloading secuences...done!") 
         return(seqinr::read.fasta(query))
       } else if (endpoint %in% c("strain-name", "gisaid-epi-isl")) return(read_csv(query, col_names = "sample_id"))
@@ -90,21 +90,21 @@ lapis_query <- function(database = c("open", "gisaid"),
 #' @param samples: list of sample names 
 #' @param sample_id: sample identifier provided, one of gisaidEpiIsl, "genbankAccession", "sraAccession", "strain"
 #' @param database: one of open (genbank) or gisaid
-#' @endpoint:  one or a list of details/aa-mutations/nuc-mutations/fasta/fasta-aligned/contributors/strain-names/gisaid-epi-isl
+#' @endpoint:  one or a list of lapis endpoints https://lapis.cov-spectrum.org/gisaid/v2/docs/references/open-api-definition
 #' 
 #' @return: Data from LAPIS response, dataframe or list of dataframes, DNAbin for sequence data.
 #' @export
 #' 
 #' @example 
 #' lapis_query_by_id(database = "open",
-#'                   endpoint =c("details", "fasta-aligned"),
+#'                   endpoint =c("details", "alignedNucleotideSequences"),
 #'                   samples =  c("EPI_ISL_7367543", "EPI_ISL_7367544", "EPI_ISL_7367542"),
 #'                   sample_id = "gisaidEpiIsl")
 lapis_query_by_id <- function(samples, 
                               sample_id,# = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
                               database, endpoint, 
                               filter = NULL,
-                              batch_size = 100, 
+                              batch_size = 50, 
                               access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
   
   data <- lapply(endpoint, function(ep) {
@@ -112,15 +112,19 @@ lapis_query_by_id <- function(samples,
     data_endpoint = list()
   
     while (i < (length(samples) + 1)) {
-      attr_list <- list(samples[i:(i + batch_size - 1)])
-      names(attr_list) <- sample_id
+      attr_list <- samples[i:(i + batch_size - 1)]
+      names(attr_list) <- rep(sample_id, length(attr_list))
       
       lapis_data <- lapis_query(database = database,
                                 endpoint = ep,
                                 filter = c(attr_list, filter),
                                 accessKey = access_key)
-        
-      if (ep %in% c("fasta", "fasta-aligned")) data_endpoint <- c(data_endpoint, lapis_data)
+      
+      cat("\nQuery: ", lapis_data$query)
+      cat("\nErrors: ", lapis_data$errors)
+      cat("\nData version: ", lapis_data$info$dataVersion)
+      cat(nrow(lapis_data$data))
+      if (ep %in% c("unalignedNucleotideSequences", "alignedNucleotideSequences")) data_endpoint <- c(data_endpoint, lapis_data)
       else {
         if (ep %in% c("nuc-mutations", "aa-mutations") & batch_size == 1) data <- lapis_data$data %>% mutate(sample = attr_list)
         else data <- lapis_data$data
@@ -193,6 +197,7 @@ lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NUL
                          nextcladeQcSnpClustersScoreFrom = NULL, nextcladeQcSnpClustersScoreTo = NULL,
                          nextcladeQcFrameShiftsScoreFrom = NULL, nextcladeQcFrameShiftsScoreTo = NULL,
                          nextcladeQcStopCodonsScoreFrom = NULL, nextcladeQcStopCodonsScoreTo = NULL,
+                         nextcladeDatasetVersion = NULL,
                          genbankAccession = NULL, sraAccession = NULL, gisaidEpiIsl = NULL, strain = NULL){
   attr_list <- compact(as.list(environment(), all=TRUE))
   return(attr_list)
@@ -231,7 +236,7 @@ lapis_build_query <- function(database, endpoint, group, filter, version, access
 
 lapis_query_sequence_reference <- function(database = c("open", "gisaid"), 
                                            endpoint = c("aa-mutations", "nuc-mutations"), 
-                                           filter = NULL, version = "v1", accessKey = NULL,
+                                           filter = NULL, version = "v2", accessKey = NULL,
                                            min_proportion = 0.75,
                                            reference_genome,
                                            output_fasta = NULL) {
@@ -265,3 +270,4 @@ lapis_query_sequence_reference <- function(database = c("open", "gisaid"),
   
   return(reference_mutated_dnabin)
   }
+

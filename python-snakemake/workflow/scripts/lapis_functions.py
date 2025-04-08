@@ -13,23 +13,33 @@ from io import StringIO
 import pandas as pd
 
 
+# def attr_dict_to_lapis(attr_dict):
+#     s = str(attr_dict)
+#     lapis_s = s.replace(
+#         "{", "").replace(
+#         "}", "").replace(
+#         "'", "").replace(
+#         ",", "&").replace(
+#         ":", "=").replace(
+#         " ", "").replace(
+#         "\\n", ",").replace(
+#         "UnitedKingdom", "United Kingdom").replace(
+#         "Homosapiens", "Homo sapiens")
+#     #TODO improve space handling
+#     return lapis_s
+
 def attr_dict_to_lapis(attr_dict):
-    s = str(attr_dict)
-    lapis_s = s.replace(
-        "{", "").replace(
-        "}", "").replace(
-        "'", "").replace(
-        ",", "&").replace(
-        ":", "=").replace(
-        " ", "").replace(
-        "\\n", ",").replace(
-        "UnitedKingdom", "United Kingdom").replace(
-        "Homosapiens", "Homo sapiens")
-    #TODO improve space handling
+    lapis_s= ""
+    for key, value in attr_dict.items():
+        if isinstance(value, list):
+            for v in value:
+                lapis_s += str(key) + "=" + str(v) + "&"
+        else:
+            lapis_s += str(key) + "=" + str(value) + "&"
     return lapis_s
 
 
-def lapis_build_query(database, endpoint, attributes, fields = None, accessKey = None, version = "v1"):
+def lapis_build_query(database, endpoint, attributes, fields = None, accessKey = None, version = "v2"):
     url = "https://lapis.cov-spectrum.org/" + \
         database + "/" + \
         version + "/sample/" + \
@@ -50,7 +60,7 @@ def query_lapis(database, endpoint, attributes, **kwargs):
         print("Response received from LAPIS!\n")
         # TODO manage LAPIS error
         
-        if endpoint == "fasta-aligned":
+        if endpoint == "alignedNucleotideSequences":
             fasta_iterator = SeqIO.parse(StringIO(req.text), "fasta")
             return fasta_iterator
         else:
@@ -75,9 +85,9 @@ def query_lapis_metadata(config, deme, output, log_file):
     data.to_csv(output, index = False, sep="\t")
 
 
-def query_lapis_aligned_seqs(config, ids_file, output_file, log_file, drop_incomplete = True, seq_identifier = "gisaidEpiIsl", batch_size = 50):
+def query_lapis_aligned_seqs(config, ids_file, output_file, log_file, drop_incomplete = True, seq_identifier = "genbankAccession", batch_size = 50):
     database = config['lapis']["database"]
-    endpoint = "fasta-aligned"
+    endpoint = "alignedNucleotideSequences"
     access_key = config['lapis']["access_key"]
     df_ids = pd.read_csv(ids_file, sep='\t')
     i = 0
@@ -85,9 +95,9 @@ def query_lapis_aligned_seqs(config, ids_file, output_file, log_file, drop_incom
     sys.stdout = open(str(log_file), "w")
     while i < len(df_ids):
         n = i+batch_size if i+batch_size < len(df_ids) else len(df_ids) 
-        ids = df_ids["gisaidEpiIsl"][i:n] # TODO use other seq identifier
-        seq_names = df_ids[i:n].set_index("gisaidEpiIsl", append = False) 
-        attributes = dict(gisaidEpiIsl = ids.to_string(index = False)) 
+        ids = df_ids["genbankAccession"][i:n] # TODO use other seq identifier
+        seq_names = df_ids[i:n].set_index("genbankAccession", append = False) 
+        attributes = dict(genbankAccession = ids.to_string(index = False)) 
         data = query_lapis(database, endpoint, attributes, accessKey = access_key)
         temp = output_file.replace(".fasta", "_temp.fasta")
         SeqIO.write(data, temp, "fasta")
