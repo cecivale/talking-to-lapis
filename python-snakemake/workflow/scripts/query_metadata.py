@@ -21,7 +21,6 @@ if __name__ == '__main__':
         sys.stderr = sys.stdout = f
         database = snakemake.params["database"]
         endpoint = "details"
-        access_key = snakemake.params["access_key"]
 
 
         dataset = snakemake.wildcards["dataset"]
@@ -35,8 +34,9 @@ if __name__ == '__main__':
             attributes_ext = attributes.copy()
             if attributes.get('add_query') is not None:
                 attributes_ext.pop("add_query")
-            metadata = query_lapis(database, endpoint, attributes_ext, accessKey = access_key)
+            metadata = query_lapis(database, endpoint, attributes_ext)
             if structured: metadata['deme'] = deme
+
 
         else:
             df_ids = pd.read_csv(attributes.get('ids_file'), sep='\t')
@@ -61,7 +61,7 @@ if __name__ == '__main__':
                 if attributes.get('add_query') is not None:
                     attributes_ext.pop("add_query")
 
-                data_query = query_lapis(database, endpoint, attributes_ext, accessKey = access_key)
+                data_query = query_lapis(database, endpoint, attributes_ext)
 
                 metadata = pd.concat([metadata, data_query], ignore_index=True)
 
@@ -69,7 +69,6 @@ if __name__ == '__main__':
 
                 
             if structured: metadata['deme'] = deme
-
 
         if attributes.get('add_query') is not None:
             metadata = metadata.query(attributes.get('add_query')).reset_index()
@@ -103,9 +102,9 @@ if __name__ == '__main__':
             ids[["deme"]] = snakemake.params["deme"] 
             metadata[["deme"]] = snakemake.params["deme"] 
 
-
-
         metadata.to_csv(snakemake.output["metadata"], index = False, sep="\t")
+
         ids.to_csv(snakemake.output["ids"], index = False, sep="\t")
+
 
 

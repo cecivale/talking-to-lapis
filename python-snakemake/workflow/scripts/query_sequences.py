@@ -22,7 +22,6 @@ if __name__ == '__main__':
         sys.stderr = sys.stdout = f
         database = snakemake.params["database"] 
         endpoint = "alignedNucleotideSequences"
-        access_key = snakemake.params["access_key"]
         df_ids = pd.read_csv(snakemake.input["ids"], sep='\t')
         batch_size = snakemake.params["batch_size"]
         output_file = snakemake.output["alignment"]
@@ -39,7 +38,7 @@ if __name__ == '__main__':
                 seq_names = df_ids[i:n].set_index("seq_id", append = False) 
             attributes = dict() 
             attributes[seq_id] = ids.to_list()
-            data = query_lapis(database, endpoint, attributes, accessKey = access_key)
+            data = query_lapis(database, endpoint, attributes)
             temp = output_file.replace(".fasta", "_temp.fasta")
             SeqIO.write(data, temp, "fasta")
 

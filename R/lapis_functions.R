@@ -104,8 +104,8 @@ lapis_query_by_id <- function(samples,
                               sample_id,# = c("gisaidEpiIsl", "genbankAccession", "sraAccession", "strain"),  
                               database, endpoint, 
                               filter = NULL,
-                              batch_size = 50, 
-                              access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
+                              batch_size = 50) {
+                              #access_key = Sys.getenv("LAPIS_ACCESS_KEY")) {
   
   data <- lapply(endpoint, function(ep) {
     i = 1
@@ -117,8 +117,8 @@ lapis_query_by_id <- function(samples,
       
       lapis_data <- lapis_query(database = database,
                                 endpoint = ep,
-                                filter = c(attr_list, filter),
-                                accessKey = access_key)
+                                filter = c(attr_list, filter))
+                                #accessKey = access_key)
       
       cat("\nQuery: ", lapis_data$query)
       cat("\nErrors: ", lapis_data$errors)
@@ -187,9 +187,9 @@ lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NUL
                          regionExposure = NULL, countryExposure = NULL, divisionExposure = NULL,
                          ageFrom = NULL, ageTo = NULL, sex = NULL, host = NULL, samplingStrategy = NULL,
                          pangoLineage = NULL, nextcladePangoLineage = NULL, 
-                         nextstrainClade = NULL, gisaidClade = NULL,
+                         nextstrainClade = NULL, gisaidClade = NULL, whoClade = NULL,
                          submittingLab = NULL, originatingLab = NULL,
-                         nucMutations = NULL, aaMutations = NULL, variantQuery = NULL, 
+                         nucMutations = NULL, aaMutations = NULL, variantQuery = NULL, advancedQuery = NULL,
                          nextcladeQcOverallScoreFrom = NULL, nextcladeQcOverallScoreTo = NULL,
                          nextcladeQcMissingDataScoreFrom = NULL, nextcladeQcMissingDataScoreTo = NULL,
                          nextcladeQcMixedSitesScoreFrom = NULL, nextcladeQcMixedSitesScoreTo = NULL,
@@ -198,7 +198,8 @@ lapis_filter <- function(dateFrom = NULL, dateTo = NULL, dateSubmittedFrom = NUL
                          nextcladeQcFrameShiftsScoreFrom = NULL, nextcladeQcFrameShiftsScoreTo = NULL,
                          nextcladeQcStopCodonsScoreFrom = NULL, nextcladeQcStopCodonsScoreTo = NULL,
                          nextcladeDatasetVersion = NULL,
-                         genbankAccession = NULL, sraAccession = NULL, gisaidEpiIsl = NULL, strain = NULL){
+                         genbankAccession = NULL, sraAccession = NULL, gisaidEpiIsl = NULL, strain = NULL,
+                         minProportion = NULL){
   attr_list <- compact(as.list(environment(), all=TRUE))
   return(attr_list)
 }

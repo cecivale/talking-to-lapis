@@ -15,9 +15,6 @@ min_version("7.11.0")
 
 configfile: "config.yaml"
 
-envvars:
-    config["lapis"]["access_key"]
-
 localrules: all, clean
 # wildcards
 wildcard_constraints:
@@ -65,7 +62,6 @@ rule load_metadata:
         metadata = "results/data/{dataset}/{prefix,.*}metadata.tsv"
     params:
         database = config["lapis"]["database"],
-        access_key = os.environ[config["lapis"]["access_key"]],
         seq_id = config["lapis"]["seq_id"],
         deme = lambda wildcards: _get_deme(wildcards)
     log:
@@ -108,7 +104,7 @@ def  _get_sequences_ids(wildcards):
 def  _get_lapis_param(param, wildcards):
     return config["lapis"][param]
 
-rule load_sequences: # TODO access_key # TODO save sequence version in log # TODO check if it works with --use-conda
+rule load_sequences: 
     message:
         """
         Load with LAPIS the selected sequences for each dataset.
@@ -122,7 +118,6 @@ rule load_sequences: # TODO access_key # TODO save sequence version in log # TOD
         seq_id = lambda wildcards: _get_lapis_param("seq_id", wildcards),
         drop_incomplete = True,
         batch_size = config["lapis"]["batch_size"],
-        access_key = os.environ[config["lapis"]["access_key"]] or ""
     log:
         "logs/load_seqs_{dataset}.txt" 
     conda:

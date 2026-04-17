@@ -73,10 +73,9 @@ def query_lapis_metadata(config, deme, output, log_file):
     database = config['lapis']["database"]
     endpoint = "details"
     attributes = config['data'][deme]
-    access_key = config['lapis']["access_key"]
     
     sys.stdout = open(str(log_file), "w")
-    data = query_lapis(database, endpoint, attributes, accessKey = access_key)
+    data = query_lapis(database, endpoint, attributes)
     data['deme'] = deme
 
     if 'exclude_country' in attributes:
@@ -88,7 +87,6 @@ def query_lapis_metadata(config, deme, output, log_file):
 def query_lapis_aligned_seqs(config, ids_file, output_file, log_file, drop_incomplete = True, seq_identifier = "genbankAccession", batch_size = 50):
     database = config['lapis']["database"]
     endpoint = "alignedNucleotideSequences"
-    access_key = config['lapis']["access_key"]
     df_ids = pd.read_csv(ids_file, sep='\t')
     i = 0
     
@@ -98,7 +96,7 @@ def query_lapis_aligned_seqs(config, ids_file, output_file, log_file, drop_incom
         ids = df_ids["genbankAccession"][i:n] # TODO use other seq identifier
         seq_names = df_ids[i:n].set_index("genbankAccession", append = False) 
         attributes = dict(genbankAccession = ids.to_string(index = False)) 
-        data = query_lapis(database, endpoint, attributes, accessKey = access_key)
+        data = query_lapis(database, endpoint, attributes)
         temp = output_file.replace(".fasta", "_temp.fasta")
         SeqIO.write(data, temp, "fasta")
         with open(temp) as original, open(output_file, 'a') as corrected:

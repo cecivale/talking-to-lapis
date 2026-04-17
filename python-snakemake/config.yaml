@@ -10,7 +10,6 @@
 lapis:
   database: "open" # gisaid or open
   seq_id: "genbankAccession" #gisaidEpiIsl or genbankAccession
-  #access_key: "LAPIS_ACCESS_KEY" # only for gisaid endpoint
   batch_size: 100
 
 datasets:
